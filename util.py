@@ -3,14 +3,13 @@ import time
 from data import EOS_index, SOS_index
 import torch
 import matplotlib.pyplot as plt
-import matplotlib.ticker as ticker
 
 # plt.switch_backend('agg')
 
 device = "cuda:0" if torch.cuda.is_available() else "cpu"
 # device = "cpu"
 
-MAX_TARGET_LENGTH = 15
+MAX_TARGET_LENGTH = 10
 HIDDEN_SIZE = 256
 EMBEDDING_SIZE = 300
 
