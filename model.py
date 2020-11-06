@@ -47,6 +47,7 @@ class Attn(nn.Module):
         self.method = method
         self.hidden_size = hidden_size
         self.softmax = nn.Softmax(dim=0)
+        self.linear = nn.Linear(hidden_size, hidden_size)
         if self.method == 'general':
             self.attn = nn.Linear(self.hidden_size, self.hidden_size)
         if self.method == 'concat':
@@ -55,7 +56,7 @@ class Attn(nn.Module):
 
     def forward(self, hidden, encoder_states, device):
         seq_len = encoder_states.size(0)
-
+        hidden = self.linear(hidden)
         attn_energies = torch.zeros(seq_len, device=device)
         for i in range(seq_len):
             attn_energies[i] = self.score(hidden.view(-1), encoder_states[i], device)
@@ -74,6 +75,7 @@ class Attn(nn.Module):
             # v @ W * (hidden | encoder_state) (learnable params)
             if self.method == 'concat':
                 energy = self.attn(torch.cat((hidden, encoder_state), -1))
+                energy = nn.functional.tanh(energy)
                 return self.v.to(device).dot(energy)
         except RuntimeError as r:
             print(hidden.size(), encoder_state.size())

@@ -9,26 +9,30 @@ input_lang, output_lang, pairs = prepare_data('eng', 'fra')
 encoder = EncoderRNN(EMBEDDING_SIZE, input_lang.n_words, HIDDEN_SIZE)
 decoder = DecoderRNN(EMBEDDING_SIZE, output_lang.n_words, HIDDEN_SIZE, output_lang.n_words)
 attn = Attn('dot', HIDDEN_SIZE)
+hidden_state_mapper = nn.Linear(HIDDEN_SIZE, HIDDEN_SIZE)
 enc_optimizer = torch.optim.Adam(encoder.parameters())
 dec_optimizer = torch.optim.Adam(decoder.parameters())
 if attn.method != 'dot':
     attn_optimizer = torch.optim.Adam(attn.parameters())
+hs_mapper_optimizer = torch.optim.Adam(hidden_state_mapper.parameters())
 criterion = torch.nn.NLLLoss()
 teacher_forcing_ratio = 0.4
-N_ITER = 75000
+N_ITER = 50000
 
 
 def train(encoder, decoder, attention, input_tensor, target_tensor, record_outputs):
     enc_optimizer.zero_grad()
     dec_optimizer.zero_grad()
+    hidden_state_mapper.zero_grad()
     if attention.method != 'dot':
         attn_optimizer.zero_grad()
-    enc_hidden = encoder.init_hidden().to(device)
     input_tensor = input_tensor.to(device)
     target_tensor = target_tensor.to(device)
+
     encoder_states, enc_hidden = encoder(input_tensor)
     encoder_states = encoder_states.view(input_tensor.size(0), -1)
-    dec_hidden = enc_hidden
+    dec_hidden = hidden_state_mapper(enc_hidden)
+
     loss = torch.zeros(1, device=device)
     decoder_words = []
     decoder_targets = []
@@ -65,6 +69,7 @@ def train(encoder, decoder, attention, input_tensor, target_tensor, record_outpu
     loss.backward()
     enc_optimizer.step()
     dec_optimizer.step()
+    hs_mapper_optimizer.step()
     if attention.method != 'dot':
         attn_optimizer.step()
     return loss.item() / target_tensor.size(0)
@@ -74,6 +79,7 @@ def train_iterations(encoder, decoder, attention):
     encoder.to(device)
     decoder.to(device)
     attention.to(device)
+    hidden_state_mapper.to(device)
     start = time.time()
     plot_loss = []
     print_loss_total = 0

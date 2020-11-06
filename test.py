@@ -12,7 +12,7 @@ def evaluate(encoder, decoder, attention, sentence, input_lang, output_lang):
         encoder_states, enc_hidden = encoder(input_tensor)
         encoder_states = encoder_states.view(input_tensor.size(0), -1)
         dec_input = torch.tensor([[SOS_index]], dtype=torch.long, device=device)
-        dec_hidden = enc_hidden
+        dec_hidden = decoder.init_hidden().to(device)
         output_sentence = []
         for d in range(MAX_TARGET_LENGTH):
             weights = attention(dec_hidden, encoder_states, device)
@@ -56,10 +56,10 @@ def evaluate_random_sample(n=10):
         print(row + 1, col + 1)
         # ax = plt.subplot(row + 1, col + 1, 1)
         plt.matshow(weights)
-        plt.xticks(range(len(pair[0].split())), pair[0].split())
+        plt.yticks(range(len(pair[0].split())), pair[0].split())
         words = output_sentence.split()
-        plt.yticks(range(len(words)), words)
-    # plt.show()
+        plt.xticks(range(len(words)), words)
+    plt.show()
 
 
-evaluate_random_sample()
+evaluate_random_sample(5)
