@@ -72,4 +72,7 @@ def prepare_data(lang1, lang2, reverse=False):
     print("Total words counted:")
     print(input_lang.name, input_lang.n_words)
     print(output_lang.name, output_lang.n_words)
-    return input_lang, output_lang, pairs
+    random.shuffle(pairs)
+    train_split = int(0.7 * len(pairs))
+    valid_split = int(0.85 * len(pairs))
+    return input_lang, output_lang, pairs[:train_split], pairs[train_split:valid_split], pairs[valid_split:]

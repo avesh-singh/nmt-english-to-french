@@ -11,7 +11,7 @@ device = "cuda:0" if torch.cuda.is_available() else "cpu"
 
 MAX_TARGET_LENGTH = 10
 HIDDEN_SIZE = 256
-EMBEDDING_SIZE = 300
+EMBEDDING_SIZE = 150
 
 
 def as_minutes(s):
