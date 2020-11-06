@@ -7,24 +7,21 @@ import matplotlib.pyplot as plt
 
 def evaluate(encoder, decoder, attention, sentence, input_lang, output_lang):
     with torch.no_grad():
-        enc_hidden = encoder.init_hidden().to(device)
         input_tensor = sentence_to_tensor(input_lang, sentence).to(device)
-        attention_matrix = torch.zeros(input_tensor.size(0), MAX_TARGET_LENGTH, device=device)
-        encoder_states = torch.zeros(input_tensor.size(0), HIDDEN_SIZE, device=device)
-        for e in range(input_tensor.size(0)):
-            enc_output, enc_hidden = encoder(input_tensor[e], enc_hidden)
-            encoder_states[e, :] = enc_hidden
-
+        attention_matrix = torch.zeros(input_tensor.size(0) + 1, MAX_TARGET_LENGTH, device=device)
+        encoder_states, enc_hidden = encoder(input_tensor)
+        encoder_states = encoder_states.view(input_tensor.size(0), -1)
         dec_input = torch.tensor([[SOS_index]], dtype=torch.long, device=device)
         dec_hidden = enc_hidden
         output_sentence = []
         for d in range(MAX_TARGET_LENGTH):
             weights = attention(dec_hidden, encoder_states, device)
-            attention_matrix[:, d] = weights.view(1, -1)
+            attention_matrix[1:, d] = weights.view(1, -1)
             context = torch.mm(weights.T, encoder_states).unsqueeze(0)
             dec_output, dec_hidden = decoder(dec_input, context)
             _, idx = dec_output.topk(1, -1)
             if idx.item() == EOS_index:
+                attention_matrix = attention_matrix[:, :d + 1]
                 break
             output_sentence.append(output_lang.index2word[idx.item()])
             dec_input = idx.squeeze().detach().to(device)
@@ -54,10 +51,15 @@ def evaluate_random_sample(n=10):
         print('<', output_sentence)
         print('=', pair[1])
         print()
-        # plt.matshow(weights)
-        # plt.yticks(range(weights.shape[0]), labels=list(reversed(pair[0].split() + ['<EOS>'] * (weights.shape[0] - len(
-        #     pair[0].split())))))
-        # plt.show()
+        row = i // 5
+        col = i % 5
+        print(row + 1, col + 1)
+        # ax = plt.subplot(row + 1, col + 1, 1)
+        plt.matshow(weights)
+        plt.xticks(range(len(pair[0].split())), pair[0].split())
+        words = output_sentence.split()
+        plt.yticks(range(len(words)), words)
+    # plt.show()
 
 
 evaluate_random_sample()

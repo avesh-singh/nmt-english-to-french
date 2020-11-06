@@ -9,9 +9,9 @@ class EncoderRNN(nn.Module):
         self.embedding = nn.Embedding(input_size, embedding_size)
         self.gru = nn.GRU(embedding_size, hidden_size)
 
-    def forward(self, input_word, hidden):
-        embedding = self.embedding(input_word).view(1, 1, -1)
-        output, hidden = self.gru(embedding, hidden)
+    def forward(self, input_word):
+        embedding = self.embedding(input_word)
+        output, hidden = self.gru(embedding)
         return output, hidden
 
     def init_hidden(self):
@@ -46,6 +46,7 @@ class Attn(nn.Module):
         super(Attn, self).__init__()
         self.method = method
         self.hidden_size = hidden_size
+        self.softmax = nn.Softmax(dim=0)
         if self.method == 'general':
             self.attn = nn.Linear(self.hidden_size, self.hidden_size)
         if self.method == 'concat':
@@ -57,19 +58,24 @@ class Attn(nn.Module):
 
         attn_energies = torch.zeros(seq_len, device=device)
         for i in range(seq_len):
-            attn_energies[i] = self.score(hidden[0][0], encoder_states[i], device)
+            attn_energies[i] = self.score(hidden.view(-1), encoder_states[i], device)
 
-        return nn.functional.softmax(attn_energies, dim=0).unsqueeze(1)
+        return self.softmax(attn_energies).unsqueeze(1)
 
     def score(self, hidden, encoder_state, device):
-        # hidden @ encoder_state (no learnable params)
-        if self.method == 'dot':
-            return hidden.dot(encoder_state)
-        # hidden @ W * encoder_state (learnable params)
-        if self.method == 'general':
-            energy = self.attn(encoder_state)
-            return hidden.dot(energy)
-        # v @ W * (hidden | encoder_state) (learnable params)
-        if self.method == 'concat':
-            energy = self.attn(torch.cat((hidden, encoder_state), -1))
-            return self.v.to(device).dot(energy)
+        try:
+            # hidden @ encoder_state (no learnable params)
+            if self.method == 'dot':
+                return hidden.dot(encoder_state)
+            # encoder_state @ W * hidden (learnable params)
+            if self.method == 'general':
+                energy = self.attn(hidden)
+                return encoder_state.dot(energy)
+            # v @ W * (hidden | encoder_state) (learnable params)
+            if self.method == 'concat':
+                energy = self.attn(torch.cat((hidden, encoder_state), -1))
+                return self.v.to(device).dot(energy)
+        except RuntimeError as r:
+            print(hidden.size(), encoder_state.size())
+            print(r)
+            return torch.tensor(0)

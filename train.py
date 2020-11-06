@@ -26,10 +26,8 @@ def train(encoder, decoder, attention, input_tensor, target_tensor, record_outpu
     enc_hidden = encoder.init_hidden().to(device)
     input_tensor = input_tensor.to(device)
     target_tensor = target_tensor.to(device)
-    encoder_states = torch.zeros(input_tensor.size(0), HIDDEN_SIZE, device=device)
-    for e in range(input_tensor.size(0)):
-        enc_out, enc_hidden = encoder(input_tensor[e], enc_hidden)
-        encoder_states[e] = enc_hidden.clone().detach()
+    encoder_states, enc_hidden = encoder(input_tensor)
+    encoder_states = encoder_states.view(input_tensor.size(0), -1)
     dec_hidden = enc_hidden
     loss = torch.zeros(1, device=device)
     decoder_words = []
@@ -37,7 +35,7 @@ def train(encoder, decoder, attention, input_tensor, target_tensor, record_outpu
     if random.random() > teacher_forcing_ratio:
         decoder_input = torch.tensor([[SOS_index]], dtype=torch.long, device=device)
         for d in range(target_tensor.size(0)):
-            energies = attention(dec_hidden, encoder_states, device)
+            energies = attention(dec_hidden[0], encoder_states, device)
             context = torch.mm(energies.T, encoder_states).unsqueeze(0)
             dec_out, dec_hidden = decoder(decoder_input, context)
             loss += criterion(dec_out[0], target_tensor[d])
