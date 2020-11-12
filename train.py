@@ -5,106 +5,96 @@ import pickle
 import random
 
 # Setup the model and train
-input_lang, output_lang, pairs = prepare_data('eng', 'fra')
-encoder = EncoderRNN(EMBEDDING_SIZE, input_lang.n_words, HIDDEN_SIZE)
-decoder = DecoderRNN(EMBEDDING_SIZE, output_lang.n_words, HIDDEN_SIZE, output_lang.n_words)
-enc_optimizer = torch.optim.Adam(encoder.parameters())
-dec_optimizer = torch.optim.Adam(decoder.parameters())
-criterion = torch.nn.NLLLoss()
+device = "cuda:0" if torch.cuda.is_available() else "cpu"
+HIDDEN_SIZE = 512
+EMBEDDING_SIZE = 256
+EPOCHS = 15
+NUM_LAYERS = 2
+DROPOUT = 0.3
 teacher_forcing_ratio = 0.4
-N_ITER = 75000
+
+(train_data, valid_data, test_data), src, tgt = prepare_data()
+encoder = EncoderRNN(EMBEDDING_SIZE, len(src.vocab), HIDDEN_SIZE, NUM_LAYERS, DROPOUT)
+decoder = DecoderRNN(EMBEDDING_SIZE, len(tgt.vocab), HIDDEN_SIZE, len(tgt.vocab), NUM_LAYERS, DROPOUT)
+model = Seq2Seq(encoder, decoder, device).to(device)
+model.apply(init_weights)
+model_optimizer = torch.optim.Adam(model.parameters())
+criterion = torch.nn.CrossEntropyLoss(ignore_index=tgt.vocab.stoi[tgt.pad_token])
 
 
-def train(encoder, decoder, input_tensor, target_tensor, record_outputs):
-    encoder.to(device)
-    decoder.to(device)
-    enc_optimizer.zero_grad()
-    dec_optimizer.zero_grad()
+def train(batch, clip):
+    model_optimizer.zero_grad()
+    src = batch.src
+    tgt = batch.trg
 
-    enc_hidden = encoder.init_hidden().to(device)
-    input_tensor = input_tensor.to(device)
-    target_tensor = target_tensor.to(device)
+    output = model(src, tgt, teacher_forcing_ratio)
 
-    for e in range(input_tensor.size(0)):
-        enc_out, enc_hidden = encoder(input_tensor[e], enc_hidden)
-    dec_hidden = enc_hidden
-    loss = torch.zeros(1, device=device)
-    decoder_words = []
-    decoder_targets = []
-    if random.random() > teacher_forcing_ratio:
-        decoder_input = torch.tensor([[SOS_index]], dtype=torch.long, device=device)
-        for d in range(target_tensor.size(0)):
-            dec_out, dec_hidden = decoder(decoder_input, dec_hidden)
-            loss += criterion(dec_out[0], target_tensor[d])
-            _, idx = dec_out.topk(1, -1)
-            decoder_input = idx.squeeze().detach()
-            if record_outputs:
-                decoder_words.append(output_lang.index2word[idx.item()])
-                decoder_targets.append(output_lang.index2word[target_tensor[d].item()])
-            # if decoder_input.item() == EOS_index:
-            #     break
-        if record_outputs:
-            print("no teacher forcing")
-            print(">", ' '.join(decoder_words))
-            print("=", ' '.join(decoder_targets))
-    else:
-        decoder_input = get_decoder_input(target_tensor).to(device)
-        for d in range(decoder_input.size(0)):
-            dec_out, dec_hidden = decoder(decoder_input[d], dec_hidden)
-            loss += criterion(dec_out[0], target_tensor[d])
-            if record_outputs:
-                decoder_words.append(output_lang.index2word[dec_out.topk(1, -1)[1].item()])
-                decoder_targets.append(output_lang.index2word[target_tensor[d].item()])
-        if record_outputs:
-            print("teacher forcing")
-            print(">", ' '.join(decoder_words))
-            print("=", ' '.join(decoder_targets))
+    output_dim = output.shape[-1]
+    output = output[1:].view(-1, output_dim)
+    tgt = tgt[1:].view(-1)
+    loss = criterion(output, tgt)
     loss.backward()
-    enc_optimizer.step()
-    dec_optimizer.step()
+    nn.utils.clip_grad_norm_(model.parameters(), clip)
+    model_optimizer.step()
+    return loss.item() / output_dim
 
-    return loss.item() / target_tensor.size(0)
 
-
-def train_iters(encoder, decoder):
+def train_iters():
     start = time.time()
     plot_loss=[]
     print_loss_total = 0
     plot_loss_total = 0
     print_every = 1500
     plot_every = 100
-    # record_outputs = False
-    for i in range(N_ITER):
-        record_outputs = (i % print_every == 0)
-        training_pair = pair_to_tensor(random.choice(pairs), input_lang, output_lang)
-        input_tensor = training_pair[0].to(device)
-        target_tensor = training_pair[1].to(device)
+    clip = 1
+    best_valid_loss = float('inf')
+    for epoch in range(1, EPOCHS + 1):
+        train_loss = 0
+        epoch_time = time.time()
+        model.train()
+        for i, batch in enumerate(train_data):
+            loss = train(batch, clip)
+            train_loss += loss
+            print_loss_total += loss
+            plot_loss_total += loss
+            if i % print_every == 0 and i != 0:
+                print_loss_avg = print_loss_total / (i + 1)
+                print_loss_total = 0
+                print(f'{time_since(epoch_time, (i+1) / len(train_data))} ({i} {round(i/ len(train_data) * 100, 4)}%'
+                      f' {round(print_loss_avg, 4)})')
 
-        loss = train(encoder, decoder, input_tensor, target_tensor, False)
-        print_loss_total += loss
-        plot_loss_total += loss
-
-        if record_outputs:
-            print_loss_avg = print_loss_total / print_every
-            print_loss_total = 0
-            print(f'{time_since(start, (i+1) / N_ITER)} ({i} {round(i/ N_ITER * 100, 4)}% {round(print_loss_avg, 4)})')
-
-        if i % plot_every == 0:
-            plot_loss_avg = plot_loss_total / plot_every
-            plot_loss_total = 0
-            plot_loss.append(plot_loss_avg)
-        record_outputs = False
+            if i % plot_every == 0 and i != 0:
+                plot_loss_avg = plot_loss_total / plot_every
+                plot_loss_total = 0
+                plot_loss.append(plot_loss_avg)
+        valid_loss = evaluate(model, valid_data)
+        if valid_loss < best_valid_loss:
+            best_valid_loss = valid_loss
+            torch.save(model.state_dict(), 'model/model.pt')
+        print(f"Epoch: {epoch} | Time: {time_since(start, epoch / EPOCHS)}")
+        print(f"\tTrain loss: {train_loss:.3f}      | Train ppl: {math.exp(train_loss):7.3f}")
+        print(f"\tValidation loss: {valid_loss:.3f} | Validation ppl: {math.exp(valid_loss):7.3f}")
     return plot_loss
 
 
-if __name__ == "__main__":
-    pickle.dump(input_lang, open('data/input_language.pkl', 'wb'))
-    pickle.dump(output_lang, open('data/output_language.pkl', 'wb'))
-    pickle.dump(pairs, open('data/training_pairs.pkl', 'wb'))
-    encoder.to(device)
-    decoder.to(device)
-    losses = train_iters(encoder, decoder)
-    show_plot(losses)
-    torch.save(encoder.state_dict(), 'model/enc_simple.pt')
-    torch.save(decoder.state_dict(), 'model/dec_simple.pt')
+def evaluate(model, data):
+    model.eval()
+    loss = 0
+    with torch.no_grad():
+        for i, batch in enumerate(data):
+            src = batch.src
+            tgt = batch.trg
+            output = model(src, tgt)
+            output_dim = output.size(-1)
+            output = output[1:].view(-1, output_dim)
+            tgt = tgt[1:].view(-1)
+            loss += criterion(output, tgt).item()
+    return loss / len(data)
 
+
+if __name__ == "__main__":
+    losses = train_iters()
+    show_plot(losses)
+    model.load_state_dict(torch.load('model/model.pt'))
+    test_loss = evaluate(model, test_data)
+    print(f"\n\nTesting loss: {test_loss:.3f} | Testing ppl: {math.exp(test_loss):7.3f}")
