@@ -30,14 +30,22 @@
       <change afterPath="$PROJECT_DIR$/.idea/nmt.iml" afterDir="false" />
       <change afterPath="$PROJECT_DIR$/.idea/vcs.xml" afterDir="false" />
       <change afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/data/test_data.pkl" afterDir="false" />
       <change afterPath="$PROJECT_DIR$/model/model.pt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Lang.py" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/data.py" beforeDir="false" afterPath="$PROJECT_DIR$/data.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/data/eng-fra.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/data/input_language.pkl" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/data/output_language.pkl" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/data/training_pairs.pkl" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/dec_simple.pt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/enc_simple.pt" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/model.py" beforeDir="false" afterPath="$PROJECT_DIR$/model.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/model/dec_simple.pt" beforeDir="false" afterPath="$PROJECT_DIR$/model/dec_simple.pt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/model/enc_simple.pt" beforeDir="false" afterPath="$PROJECT_DIR$/model/enc_simple.pt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/model/dec_simple.pt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/model/enc_simple.pt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/test.py" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/train.py" beforeDir="false" afterPath="$PROJECT_DIR$/train.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/util.py" beforeDir="false" afterPath="$PROJECT_DIR$/util.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/util.py" beforeDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -246,11 +254,6 @@
   <component name="XDebuggerManager">
     <breakpoint-manager>
       <breakpoints>
-        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
-          <url>file://$PROJECT_DIR$/util.py</url>
-          <line>34</line>
-          <option name="timeStamp" value="1" />
-        </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/model.py</url>
           <line>35</line>
